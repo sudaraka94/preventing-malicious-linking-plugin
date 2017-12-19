@@ -8,51 +8,69 @@ require 'uri'
 require 'faraday'
 require 'json'
 
-# Returns an array of urls in the given string using regex
-def getUrls(post_body)
-  urls=Array[]
-  words = post_body.split
-  words.each do |word|
-    if(/\S+\.\S+/.match(word))
-      urls.push(word)
+after_initialize do
+
+  Post.register_custom_field_type('malicious_urls', :json)
+  # Returns an array of urls in the given string using regex
+  def getUrls(post_body)
+    urls=Array[]
+    words = post_body.split
+    words.each do |word|
+      if(/\S+\.\S+/.match(word))
+        urls.push(word)
+      end
     end
+    return urls
   end
-  return urls
-end
 
-# Returns malicious urls in a string
-def getMalicioudUrls(urls)
+  # Returns malicious urls in a string
+  def getMalicioudUrls(urls)
 
-  url_str=''
-  # Process urls
-  urls.each do |url|
-    if(url_str=='')
-      url_str=url_str+"{\"url\": \"#{url}\"}"
-    else
-      url_str=url_str+",{\"url\": \"#{url}\"}"
+    url_str=''
+    # Process urls
+    urls.each do |url|
+      if(url_str=='')
+        url_str=url_str+"{\"url\": \"#{url}\"}"
+      else
+        url_str=url_str+",{\"url\": \"#{url}\"}"
+      end
     end
-  end
-  req_body="{\"client\": {\"clientId\":\"yourcompanyname\",\"clientVersion\": \"0.1\"},\"threatInfo\":{\"threatTypes\":[\"MALWARE\", \"SOCIAL_ENGINEERING\"],\"platformTypes\":[\"ANY_PLATFORM\"],\"threatEntryTypes\": [\"URL\"],\"threatEntries\": [#{url_str}]}}"
-  puts req_body
-  response = Faraday.post do |req|
-    req.url "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=<api key>"
-    req.headers['Content-Type'] = 'application/json'
-    req.body = req_body
+    req_body="{\"client\": {\"clientId\":\"yourcompanyname\",\"clientVersion\": \"0.1\"},\"threatInfo\":{\"threatTypes\":[\"MALWARE\", \"SOCIAL_ENGINEERING\"],\"platformTypes\":[\"ANY_PLATFORM\"],\"threatEntryTypes\": [\"URL\"],\"threatEntries\": [#{url_str}]}}"
+
+    response = Faraday.post do |req|
+      req.url "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=AIzaSyCAyFRbRwSl-XSlsmxrsw5jMeJQ3JikaVA"
+      req.headers['Content-Type'] = 'application/json'
+      req.body = req_body
+    end
+
+    parsed_response=JSON.parse response.body
+    threats=parsed_response['matches']
+
+    begin
+      data=::PLuginStore.get('preventing-malicious-linking-plugin','data')
+      flagged_threats=data['flagged_threats']
+    rescue
+      flagged_threats=Array[]
+    end
+
+    threats.each do |threat|
+      url_record=Hash.new()
+      url_record['threatType']=threat['threatType']
+      url_record['url']=threat['threat']['url']
+      flagged_threats.push(url_record)
+    end
+
+    return flagged_threats.to_json
+
   end
 
-  parsed_response=JSON.parse response.body
-  threats=parsed_response['matches']
-  if(threats.count()==1)
-    puts "One threat found !"
-  else
-    puts threats.count().to_s+" threats found !"
+  DiscourseEvent.on(:post_created) do |post, opts|
+    urls=getUrls(post.raw)
+    puts 'initialized'
+    flagged_threats=getMalicioudUrls(urls)
+    post.custom_fields['malicious_urls'] =flagged_threats
+    post.save_custom_fields(true)
+    puts urls
   end
-end
-
-DiscourseEvent.on(:post_created) do |post|
-  urls=getUrls(post.raw)
-  puts 'initialized'
-  getMalicioudUrls(urls)
-  puts urls
 end
 
