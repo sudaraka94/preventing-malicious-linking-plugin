@@ -10,7 +10,12 @@ require 'json'
 
 after_initialize do
 
-  Post.register_custom_field_type('malicious_urls', :json)
+  Post.register_custom_field_type('flagged_threats', :json)
+
+  TopicView.add_post_custom_fields_whitelister do |user|
+    ["flagged_threats"]
+  end
+
   # Returns an array of urls in the given string using regex
   def getUrls(post_body)
     urls=Array[]
@@ -68,9 +73,11 @@ after_initialize do
     urls=getUrls(post.raw)
     puts 'initialized'
     flagged_threats=getMalicioudUrls(urls)
-    post.custom_fields['malicious_urls'] =flagged_threats
+    post.custom_fields['flagged_threats'] =flagged_threats
     post.save_custom_fields(true)
-    puts urls
+    puts post.custom_fields['flagged_threats']
   end
+
+  add_to_serializer(:post, :flagged_threats) { object.custom_fields["flagged_threats"] }
 end
 
