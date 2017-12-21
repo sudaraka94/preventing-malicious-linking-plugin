@@ -8,6 +8,8 @@ require 'uri'
 require 'faraday'
 require 'json'
 
+# register_asset 'stylesheets/common/malicious-linking.scss'
+
 after_initialize do
 
   Post.register_custom_field_type('flagged_threats', :json)
