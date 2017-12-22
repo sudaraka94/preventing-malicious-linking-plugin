@@ -4,27 +4,29 @@
 # authors: Sudaraka Jayathilaka
 # url: https://github.com/sudaraka94/preventing-malicious-linking-plugin.git
 
+
+enabled_site_setting :prevent_malicious_linking_enabled
+
 require 'uri'
 require 'faraday'
 require 'json'
 
-# register_asset 'stylesheets/common/malicious-linking.scss'
+register_asset 'stylesheets/common/malicious-linking.scss'
 
 after_initialize do
 
   Post.register_custom_field_type('flagged_threats', :json)
 
-  TopicView.add_post_custom_fields_whitelister do |user|
-    ["flagged_threats"]
-  end
 
   # Returns an array of urls in the given string using regex
   def getUrls(post_body)
     urls=Array[]
     words = post_body.split
     words.each do |word|
-      if(/\S+\.\S+/.match(word))
-        urls.push(word)
+      if word!=''
+        if(/(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&\/\/=]*)/.match(word))
+          urls.push(word)
+        end
       end
     end
     return urls
@@ -32,9 +34,15 @@ after_initialize do
 
   # Returns malicious urls in a string
   def getMalicioudUrls(urls)
-
+    api_key = SiteSetting.prevent_malicious_linking_google_safebrowsing_api_key
+    client_id = SiteSetting.prevent_malicious_linking_google_safebrowsing_client_id
+    client_version = SiteSetting.prevent_malicious_linking_google_safebrowsing_client_version
+    if(api_key.to_s.empty? || client_id.to_s.empty? || client_version.to_s.empty? )
+      puts "Prevent Malicious Linking Plugin : Failed to query urls due to missing parameters. Please enter valid patameters"
+      return []
+    end
     url_str=''
-    # Process urls
+    # Process urls and create request body
     urls.each do |url|
       if(url_str=='')
         url_str=url_str+"{\"url\": \"#{url}\"}"
@@ -42,23 +50,23 @@ after_initialize do
         url_str=url_str+",{\"url\": \"#{url}\"}"
       end
     end
-    req_body="{\"client\": {\"clientId\":\"yourcompanyname\",\"clientVersion\": \"0.1\"},\"threatInfo\":{\"threatTypes\":[\"MALWARE\", \"SOCIAL_ENGINEERING\"],\"platformTypes\":[\"ANY_PLATFORM\"],\"threatEntryTypes\": [\"URL\"],\"threatEntries\": [#{url_str}]}}"
+    req_body="{\"client\": {\"clientId\":\"#{client_id}\",\"clientVersion\": \"#{client_version}\"},\"threatInfo\":{\"threatTypes\":[\"MALWARE\", \"SOCIAL_ENGINEERING\"],\"platformTypes\":[\"ANY_PLATFORM\"],\"threatEntryTypes\": [\"URL\"],\"threatEntries\": [#{url_str}]}}"
 
     response = Faraday.post do |req|
-      req.url "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=AIzaSyCAyFRbRwSl-XSlsmxrsw5jMeJQ3JikaVA"
+      req.url "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=#{api_key}"
       req.headers['Content-Type'] = 'application/json'
       req.body = req_body
     end
 
     parsed_response=JSON.parse response.body
+
+    if parsed_response == {}
+      return []
+    end
+
     threats=parsed_response['matches']
 
-    begin
-      data=::PLuginStore.get('preventing-malicious-linking-plugin','data')
-      flagged_threats=data['flagged_threats']
-    rescue
-      flagged_threats=Array[]
-    end
+    flagged_threats=[]
 
     threats.each do |threat|
       url_record=Hash.new()
@@ -71,13 +79,16 @@ after_initialize do
 
   end
 
-  DiscourseEvent.on(:post_created) do |post, opts|
+  DiscourseEvent.on(:post_created) do |post|
     urls=getUrls(post.raw)
-    puts 'initialized'
-    flagged_threats=getMalicioudUrls(urls)
-    post.custom_fields['flagged_threats'] =flagged_threats
-    post.save_custom_fields(true)
-    puts post.custom_fields['flagged_threats']
+    if urls.length>0
+      urls=urls.uniq
+      flagged_threats=getMalicioudUrls(urls)
+      if flagged_threats.length>0
+        post.custom_fields['flagged_threats'] =flagged_threats
+        post.save_custom_fields(true)
+      end
+    end
   end
 
   add_to_serializer(:post, :flagged_threats) { object.custom_fields["flagged_threats"] }

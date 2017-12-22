@@ -1,0 +1,6 @@
+en:
+  site_settings:
+    prevent_malicious_linking_enabled: "Enable Prevent Malicious Linking Plugin"
+    prevent_malicious_linking_google_safebrowsing_api_key: "API key to access Google Safe Browsing API"
+    prevent_malicious_linking_google_safebrowsing_client_id: "Client ID for Google Safe Browsing API"
+    prevent_malicious_linking_google_safebrowsing_client_version: "Client version for Google Safe Browsing API"

@@ -1,0 +1,13 @@
+plugins:
+  prevent_malicious_linking_enabled:
+    default: true
+    client: true
+  prevent_malicious_linking_google_safebrowsing_api_key:
+    default: ''
+    client: true
+  prevent_malicious_linking_google_safebrowsing_client_id:
+    default: ''
+    client: true
+  prevent_malicious_linking_google_safebrowsing_client_version:
+      default: ''
+      client: true
