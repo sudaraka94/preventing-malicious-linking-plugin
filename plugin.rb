@@ -37,8 +37,8 @@ after_initialize do
     api_key = SiteSetting.prevent_malicious_linking_google_safebrowsing_api_key
     client_id = SiteSetting.prevent_malicious_linking_google_safebrowsing_client_id
     client_version = SiteSetting.prevent_malicious_linking_google_safebrowsing_client_version
-    if(api_key.to_s.empty? || client_id.to_s.empty? || client_version.to_s.empty? )
-      puts "Prevent Malicious Linking Plugin : Failed to query urls due to missing parameters. Please enter valid patameters"
+    if(api_key.to_s.empty?)
+      puts "Prevent Malicious Linking Plugin : Failed to query urls due to missing parameters. Please enter a valid API key"
       return []
     end
     url_str=''
@@ -61,6 +61,11 @@ after_initialize do
     parsed_response=JSON.parse response.body
 
     if parsed_response == {}
+      return []
+    end
+
+    if parsed_response['error'] != nil
+      puts "Prevent Malicious Linking Plugin : Failed to query urls. Please enter valid patameters and retry"
       return []
     end
 
