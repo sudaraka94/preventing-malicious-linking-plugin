@@ -15,8 +15,16 @@ register_asset 'stylesheets/common/malicious-linking.scss'
 
 after_initialize do
 
-  Post.register_custom_field_type('flagged_threats', :json)
+  api_key = SiteSetting.prevent_malicious_linking_google_safebrowsing_api_key
+  client_id = SiteSetting.prevent_malicious_linking_google_safebrowsing_client_id
+  client_version = SiteSetting.prevent_malicious_linking_google_safebrowsing_client_version
 
+  if(api_key.to_s.empty?)
+    puts "Prevent Malicious Linking Plugin : Failed to query urls due to missing parameters. Please enter a valid API key"
+    return
+  end
+
+  Post.register_custom_field_type('flagged_threats', :json)
 
   # Returns an array of urls in the given string using regex
   def getUrls(post_body)
@@ -29,16 +37,12 @@ after_initialize do
         end
       end
     end
-    return urls
+    return urls.uniq
   end
 
   # Returns malicious urls in a string
-  def getMalicioudUrls(urls)
-    api_key = SiteSetting.prevent_malicious_linking_google_safebrowsing_api_key
-    client_id = SiteSetting.prevent_malicious_linking_google_safebrowsing_client_id
-    client_version = SiteSetting.prevent_malicious_linking_google_safebrowsing_client_version
-    if(api_key.to_s.empty?)
-      puts "Prevent Malicious Linking Plugin : Failed to query urls due to missing parameters. Please enter a valid API key"
+  def getMalicioudUrls(urls,api_key,client_id,client_version)
+    if urls==[]
       return []
     end
     url_str=''
@@ -62,9 +66,7 @@ after_initialize do
 
     if parsed_response == {}
       return []
-    end
-
-    if parsed_response['error'] != nil
+    else if parsed_response['error'] != nil
       puts "Prevent Malicious Linking Plugin : Failed to query urls. Please enter valid patameters and retry"
       return []
     end
@@ -82,18 +84,22 @@ after_initialize do
 
     return flagged_threats.to_json
 
+    end
+    end
+
+  def flag_threats(post,api_key,client_id,client_version)
+    urls=getUrls(post.raw)
+    flagged_threats=getMalicioudUrls(urls,api_key,client_id,client_version)
+    post.custom_fields['flagged_threats'] =flagged_threats
+    post.save_custom_fields(true)
   end
 
   DiscourseEvent.on(:post_created) do |post|
-    urls=getUrls(post.raw)
-    if urls.length>0
-      urls=urls.uniq
-      flagged_threats=getMalicioudUrls(urls)
-      if flagged_threats.length>0
-        post.custom_fields['flagged_threats'] =flagged_threats
-        post.save_custom_fields(true)
-      end
-    end
+    flag_threats(post,api_key,client_id,client_version)
+  end
+
+  DiscourseEvent.on(:post_edited) do |post|
+    flag_threats(post,api_key,client_id,client_version)
   end
 
   add_to_serializer(:post, :flagged_threats) { object.custom_fields["flagged_threats"] }

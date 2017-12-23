@@ -11,8 +11,9 @@ export default {
             api.decorateWidget('post:before', helper => {
                 const flagged_threats = helper.attrs.flagged_threats;
                 const model = helper.getModel();
+                console.log(model)
 
-                if(model && model.topic && flagged_threats){
+                if(flagged_threats != [] && flagged_threats){
                     let text='Following urls in the post are malicious ! <br>';
                     let list='';
                     for (let i = 0; i < flagged_threats.length; i++) {
