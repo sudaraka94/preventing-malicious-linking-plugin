@@ -1,0 +1,3 @@
+en:
+  js:
+    prevent_malicious_linking_warning: 'Following urls in the post seems to be malicious !'

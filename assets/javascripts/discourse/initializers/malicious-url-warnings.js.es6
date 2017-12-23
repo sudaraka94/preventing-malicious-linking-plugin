@@ -14,7 +14,8 @@ export default {
                 console.log(model)
 
                 if(flagged_threats != [] && flagged_threats){
-                    let text='Following urls in the post are malicious ! <br>';
+                    var warning=I18n.t('prevent_malicious_linking_warning');
+                    let text=warning+'<br>';
                     let list='';
                     for (let i = 0; i < flagged_threats.length; i++) {
                         list += '<li>'+flagged_threats[i].url+'</li>' ;
