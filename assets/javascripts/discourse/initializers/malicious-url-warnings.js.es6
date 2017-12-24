@@ -10,8 +10,6 @@ export default {
 
             api.decorateWidget('post:before', helper => {
                 const flagged_threats = helper.attrs.flagged_threats;
-                const model = helper.getModel();
-                console.log(model)
 
                 if(flagged_threats != [] && flagged_threats){
                     var warning=I18n.t('prevent_malicious_linking_warning');
