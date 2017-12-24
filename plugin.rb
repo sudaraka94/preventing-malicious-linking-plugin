@@ -19,11 +19,6 @@ after_initialize do
   client_id = SiteSetting.prevent_malicious_linking_google_safebrowsing_client_id
   client_version = SiteSetting.prevent_malicious_linking_google_safebrowsing_client_version
 
-  if(api_key.to_s.empty?)
-    puts "Prevent Malicious Linking Plugin : Failed to query urls due to missing parameters. Please enter a valid API key"
-    return
-  end
-
   Post.register_custom_field_type('flagged_threats', :json)
 
   # Returns an array of urls in the given string using regex
@@ -42,7 +37,10 @@ after_initialize do
 
   # Returns malicious urls in a string
   def getMalicioudUrls(urls,api_key,client_id,client_version)
-    if urls==[]
+    if urls==[] || api_key==''
+      if api_key==''
+        puts "Prevent Malicious Linking Plugin : Failed to query urls due to missing parameters. Please enter a valid API key"
+      end
       return []
     end
     url_str=''
@@ -55,7 +53,6 @@ after_initialize do
       end
     end
     req_body="{\"client\": {\"clientId\":\"#{client_id}\",\"clientVersion\": \"#{client_version}\"},\"threatInfo\":{\"threatTypes\":[\"MALWARE\", \"SOCIAL_ENGINEERING\"],\"platformTypes\":[\"ANY_PLATFORM\"],\"threatEntryTypes\": [\"URL\"],\"threatEntries\": [#{url_str}]}}"
-
     response = Faraday.post do |req|
       req.url "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=#{api_key}"
       req.headers['Content-Type'] = 'application/json'
@@ -66,7 +63,7 @@ after_initialize do
 
     if parsed_response == {}
       return []
-    else if parsed_response['error'] != nil
+    elsif parsed_response['error'] != nil
       puts "Prevent Malicious Linking Plugin : Failed to query urls. Please enter valid patameters and retry"
       return []
     end
@@ -84,8 +81,7 @@ after_initialize do
 
     return flagged_threats.to_json
 
-    end
-    end
+  end
 
   def flag_threats(post,api_key,client_id,client_version)
     urls=getUrls(post.raw)
@@ -103,5 +99,6 @@ after_initialize do
   end
 
   add_to_serializer(:post, :flagged_threats) { object.custom_fields["flagged_threats"] }
+
 end
 
