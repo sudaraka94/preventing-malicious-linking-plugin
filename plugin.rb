@@ -1,6 +1,6 @@
 # name: preventing-malicious-linking-plugin
 # about: This is intended to be a plugin for preventing malicious liking in discourse forums.
-# version: 0.1
+# version: 0.1.1
 # authors: Sudaraka Jayathilaka
 # url: https://github.com/sudaraka94/preventing-malicious-linking-plugin.git
 
@@ -84,6 +84,7 @@ after_initialize do
   end
 
   def flag_threats(post,api_key,client_id,client_version)
+    return unless SiteSetting.prevent_malicious_linking_enabled?
     urls=getUrls(post.raw)
     flagged_threats=getMalicioudUrls(urls,api_key,client_id,client_version)
     post.custom_fields['flagged_threats'] =flagged_threats
