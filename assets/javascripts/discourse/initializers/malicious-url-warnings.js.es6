@@ -1,5 +1,4 @@
 import { withPluginApi } from 'discourse/lib/plugin-api';
-import { on, observes } from 'ember-addons/ember-computed-decorators';
 
 export default {
     name: 'malicious-url-warnings',
