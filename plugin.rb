@@ -20,6 +20,7 @@ after_initialize do
   client_version = SiteSetting.prevent_malicious_linking_google_safebrowsing_client_version
 
   Post.register_custom_field_type('flagged_threats', :json)
+  topic_view_post_custom_fields_allowlister { ['flagged_threats'] }
 
   # Returns an array of urls in the given string using regex
   def getUrls(post_body)
@@ -99,7 +100,6 @@ after_initialize do
     flag_threats(post,api_key,client_id,client_version)
   end
 
-  add_to_serializer(:post, :flagged_threats) { object.custom_fields["flagged_threats"] }
+  add_to_serializer(:post, :flagged_threats) { post_custom_fields["flagged_threats"] }
 
 end
-
